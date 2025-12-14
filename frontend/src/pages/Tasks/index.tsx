@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, message, Space, Tag, Drawer, Select, Switch } from 'antd';
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, CodeOutlined, EditOutlined } from '@ant-design/icons';
-import type { Task, TaskCreate, Node } from '../../types';
+import type { Task, Node } from '../../types';
 import { getTasks, createTask, updateTask, deleteTask, executeTaskAction, getNodes } from '../../services/api';
 import LogTerminal from '../../components/LogTerminal';
 
