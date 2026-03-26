@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, message, Space, Tag, Drawer, Select, Switch } from 'antd';
+import { Table, Button, Modal, Form, Input, message, Space, Tag, Drawer, Select, Switch, Tabs } from 'antd';
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, CodeOutlined, EditOutlined } from '@ant-design/icons';
 import type { Task, Node } from '../../types';
 import { getTasks, createTask, updateTask, deleteTask, executeTaskAction, getNodes } from '../../services/api';
@@ -15,6 +15,7 @@ const TasksPage: React.FC = () => {
     const [form] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [activeTab, setActiveTab] = useState('all');
 
     const fetchData = async () => {
         setLoading(true);
@@ -69,6 +70,20 @@ const TasksPage: React.FC = () => {
         }
     };
 
+    const handleToggleGroupEnabled = async (name: string, enabled: boolean) => {
+        try {
+            const groupTasks = tasks.filter(t => t.name === name);
+            message.loading({ content: `Updating ${groupTasks.length} tasks...`, key: 'group_toggle' });
+            
+            await Promise.all(groupTasks.map(t => updateTask(t.id, { is_enabled: enabled })));
+            
+            message.success({ content: `All '${name}' tasks ${enabled ? 'enabled' : 'disabled'}`, key: 'group_toggle' });
+            fetchData();
+        } catch (error) {
+            message.error({ content: `Failed to update tasks for '${name}'`, key: 'group_toggle' });
+        }
+    };
+
     const handleSave = async (values: any) => {
         setSubmitting(true);
         try {
@@ -109,6 +124,9 @@ const TasksPage: React.FC = () => {
         setIsModalOpen(true);
     };
 
+    const uniqueNames = React.useMemo(() => {
+        return Array.from(new Set(tasks.map(t => t.name)));
+    }, [tasks]);
 
     const columns = [
         { title: 'ID', dataIndex: 'id', key: 'id' },
@@ -227,14 +245,43 @@ const TasksPage: React.FC = () => {
         <div>
             <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2>Task Management</h2>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-                    Add Task
-                </Button>
+                <Space>
+                    {((uniqueNames.length === 1) || (uniqueNames.length > 1 && activeTab !== 'all')) && (() => {
+                        const currentName = uniqueNames.length === 1 ? uniqueNames[0] : activeTab;
+                        const groupTasks = tasks.filter(t => t.name === currentName);
+                        const isAllEnabled = groupTasks.length > 0 && groupTasks.every(t => t.is_enabled !== false);
+                        
+                        return (
+                            <div style={{ marginRight: 16 }}>
+                                <span>Batch Toggle '{currentName}': </span>
+                                <Switch 
+                                    checked={isAllEnabled} 
+                                    onChange={(checked) => handleToggleGroupEnabled(currentName, checked)} 
+                                />
+                            </div>
+                        );
+                    })()}
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+                        Add Task
+                    </Button>
+                </Space>
             </div>
+
+            {uniqueNames.length > 1 && (
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    items={[
+                        { key: 'all', label: 'All Tasks' },
+                        ...uniqueNames.map(name => ({ key: name, label: name }))
+                    ]}
+                    style={{ marginBottom: 16 }}
+                />
+            )}
 
             <Table
                 columns={columns}
-                dataSource={tasks}
+                dataSource={activeTab === 'all' ? tasks : tasks.filter(t => t.name === activeTab)}
                 rowKey="id"
                 loading={loading}
             />
